@@ -65,6 +65,13 @@
       0
       (+ 1 (vector-len (cdr v)))))
 
+(define (reverse-vec v)
+  (define (reverse-vec-iter r v)
+    (if (null? v)
+        r
+        (reverse-vec-iter (cons (car v) r) (cdr v))))
+  (reverse-vec-iter '() v))
+
 (define (householder v)
   (if (< (norm2-square v) 1.0e-12)
       (make-identity-matrix (vector-len v))
@@ -95,18 +102,20 @@
          (map (lambda (i) (make-ek len (- i 1))) (range-list k)) 
          (map (lambda (v) (append (zero-list k) v)) m)))))
 
-(define (qr-decompose m)
-  (define vlen (vector-len (car m)))
-  (define (trim-vector v k)
+(define (trim-vector v k)
     (if (= k 0)
         v
         (trim-vector (cdr v) (- k 1))))
+
+(define (qr-decompose m)
+  (define hlen (vector-len (car m)))
+  (define vlen (vector-len m))
   (define (pick-vector m k)
     (if (= k 0)
         (car m)
         (pick-vector (cdr m) (- k 1))))
   (define (qr-decompose-iter q r k)
-    (if (= k vlen)
+    (if (= k hlen)
         (cons q r)
         (let [(h (extend-matrix 
                   (householder 
@@ -120,9 +129,29 @@
 
 ;(range-list 10)
 ;(extend-matrix (list '(1 0) '(2 1)) 3)
-(define res (qr-decompose (list '(1 1) '(2 1) '(1 2))))
+(define res (qr-decompose (list '(1 2) '(3 4) '(5 6))))
+(display "\n---------\n")
 (display (car res))
 (display "\n---------\n")
 (display (cdr res))
+(display "\n---------\n")
+(mat-mat-mult (transpose-matrix (car res)) (list '(7) '(8) '(9)))
+(define (solve-linear-regression param val)
+  (define res (qr-decompose param))
+  (define qmat (cdr res))
+  (define upper-mat (cdr res))
+  (define new-val (mat-mat-mult (transpose-matrix qmat) val))
+  (define vlen (vector-len upper-mat))
+  (define hlen (vector-len upper-mat))
+  (define (solve-upper-iter rupper-mat rval rres k)
+   (if (= k hlen)
+    (reverse-vec rres)
+    (solve-upper-iter (cdr rupper-mat) (cdr rval) () (+ k 1)))
+  ;reverse and trim unwanted elements
+  (let* ([rnew-val (trim-vector (reverse-vec new-val) (- vlen hlen))] 
+         [rupper-mat (trim-vector (reverse-vec upper-mat) (-vlen hlen))]
+         
+         )
+    
 
 
