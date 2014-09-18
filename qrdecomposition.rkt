@@ -138,20 +138,22 @@
 (mat-mat-mult (transpose-matrix (car res)) (list '(7) '(8) '(9)))
 (define (solve-linear-regression param val)
   (define res (qr-decompose param))
-  (define qmat (cdr res))
+  (define qmat (car res))
   (define upper-mat (cdr res))
-  (define new-val (mat-mat-mult (transpose-matrix qmat) val))
+  (define new-val (map (lambda (v) (car v)) (mat-mat-mult (transpose-matrix qmat) val)))
   (define vlen (vector-len upper-mat))
-  (define hlen (vector-len upper-mat))
-  (define (solve-upper-iter rupper-mat rval rres k)
+  (define hlen (vector-len (car upper-mat)))
+  (define (solve-upper-iter rupper-mat rval res k)
    (if (= k hlen)
-    (reverse-vec rres)
-    (solve-upper-iter (cdr rupper-mat) (cdr rval) () (+ k 1)))
+    res
+    (let ([param-vect (trim-vector (car rupper-mat) (- (- hlen 1) k))])
+        (define xk (/ (- (car rval) (vector-mult res (cdr param-vect))) (car param-vect))) 
+     (solve-upper-iter (cdr rupper-mat) (cdr rval) (cons xk res) (+ k 1)))))
   ;reverse and trim unwanted elements
-  (let* ([rnew-val (trim-vector (reverse-vec new-val) (- vlen hlen))] 
-         [rupper-mat (trim-vector (reverse-vec upper-mat) (-vlen hlen))]
-         
-         )
+  (let ([rnew-val (trim-vector (reverse-vec new-val) (- vlen hlen))] 
+        [rupper-mat (trim-vector (reverse-vec upper-mat) (- vlen hlen))])
+   (solve-upper-iter rupper-mat rnew-val '() 0)))
+(solve-linear-regression (list '(1 2) '(3 4) '(5 6)) (list '(7) '(8) '(9)))
     
 
 
