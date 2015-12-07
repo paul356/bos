@@ -1,4 +1,5 @@
 (ns calc-angle.core
+ (:require [clojure.string :as string])
  (:gen-class))
 
 (def PI 3.1415926)
@@ -38,9 +39,17 @@
  (let [cos-beta (calc-cos-beta r z)
        sin-beta (Math/sqrt (- 1 (* cos-beta cos-beta)))
        cos-gamma (/ (- (* first-arm sin-beta) z) second-arm)]
-  (map radian-to-degree (list (- (/ PI 2.) (Math/acos cos-gamma)) (Math/acos cos-beta)))))
+  (println cos-beta)
+  (list (- (/ PI 2.) (Math/acos cos-gamma)) (Math/acos cos-beta))))
 
 (defn -main
  "main function"
  [& args]
- (print (calc-alpha-beta 10 0)))
+ (let [alpha-beta (calc-alpha-beta 10 1)
+       alpha (first alpha-beta)
+       beta  (second alpha-beta)]
+  (println (str "alpha,beta=" (string/join "," (map radian-to-degree alpha-beta))))
+  (println (str "first-arm*cos(beta)=" (* first-arm (Math/cos beta))))
+  (println (str "second-arm*cos(alpha)=" (* second-arm (Math/cos alpha))))
+  (println (str "first-arm*sin(beta)=" (* first-arm (Math/sin beta))))
+  (println (str "second-arm*sin(alpha)=" (* second-arm (Math/sin alpha))))))
