@@ -1,7 +1,6 @@
 #define NSTEPPERS 3
-#define NSTEPS 50
+#define STEP_DIVIDE 5
 #define HALF_PULSE 50
-#define MARK_SIZE 2
 
 #define PULSE_DEGREE_RATIO_BASE ((long)8000L*6.75)
 #define PULSE_DEGREE_RATIO_FIRST ((long)8000L*15.375)
@@ -113,9 +112,19 @@ void change_to_angle(long angles[])
         pulse_delta[j] = abs(angles[j] - real_angles[j]);
     }
 
-    for (int i=0; i<NSTEPS; i++) {
+    long steps = pulse_delta[0];
+    for (int j=1; j<NSTEPPERS; j++) {
+        if (steps < pulse_delta[j]) {
+            steps = pulse_delta[j];
+        }
+    }
+    if (steps >= STEP_DIVIDE) {
+        steps /= STEP_DIVIDE;
+    }
+
+    for (long i=0; i<steps; i++) {
         for (int j=0; j<NSTEPPERS; j++) {
-            long interim = map(i, 0, NSTEPS, 0, pulse_delta[j]);
+            long interim = map(i, 0, steps, 0, pulse_delta[j]);
             if (interim > pulse_done[j]) {
                 pulse_stepper(j, interim - pulse_done[j], pulse_dir[j]);
                 pulse_done[j] = interim;
@@ -137,7 +146,7 @@ void change_to_angle(long angles[])
 
 void echo_done (int ret)
 {
-    Serial.print('0' + ret);
+    Serial.print((char)('0' + ret));
 }
 
 void dump_real_angles ()
@@ -151,22 +160,6 @@ void dump_real_angles ()
     }
     Serial.print('\n');
 }
-
-/*
-   void change_to_degree(float a, float b, float c)
-   {
-   float degs[NSTEPPERS];
-   long angles[NSTEPPERS];
-
-   degs[0] = a; degs[1] = b; degs[2] = c;
-
-   for (int i=0; i<NSTEPPERS; i++) {
-   angles[i] = angle_to_pulse(degs[i], i);
-   }
-
-   change_to_angle(&angles[0]);
-   }
-   */
 
 void loop()
 {
