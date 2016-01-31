@@ -1,6 +1,9 @@
+#include <EEPROM.h>
+
 #define NSTEPPERS 3
-#define STEP_DIVIDE 5
+#define STEP_DIVIDE 1
 #define HALF_PULSE 50
+#define MAX_TRIPLES 333
 
 #define PULSE_DEGREE_RATIO_BASE ((long)8000L*6.75)
 #define PULSE_DEGREE_RATIO_FIRST ((long)8000L*15.375)
@@ -33,6 +36,8 @@ void setup()
     for (int i=0; i<NSTEPPERS; i++) {
         pinMode(step_pin[i], OUTPUT);
     }
+    
+    EEPROM.put(0, 0L);
 }
 
 long angle_to_pulse(float deg, int idx)
@@ -50,37 +55,59 @@ int serial_read_sync()
     }
 }
 
-int read_angles(long angles[])
+int read_angles()
 {
     float degs[NSTEPPERS];
+    long  angles[NSTEPPERS];
+    char  ch = 0; // fake intial value
+    long  count = 0;
+    int   ret = 0;
+    int   address = 0;
 
-    // Get angle from serial port
-    // 1. Find the start of a set of angles
-    while (serial_read_sync() != 'a') {
-        ;
+    while (ch != 's' && ch != 'd') {
+        ch = serial_read_sync();
+    } 
+
+    if (ch == 'd') {
+        echo_done(0);
+        return 1;
     }
-    for (int i=0; i<NSTEPPERS; i++) {
-        if (i != 0) {
+
+    // ch should be 's', now to read in the angles
+    serial_read_sync();
+    count = Serial.parseInt();
+    if (count > MAX_TRIPLES) {
+        count = MAX_TRIPLES;
+    }
+    EEPROM.put(address, count);
+    address += sizeof(count);
+    echo_done(0);
+
+    for (long k=0; k<count; k++) {
+        ret = 0;
+        for (int i=0; i<NSTEPPERS; i++) {
             serial_read_sync();
+            serial_read_sync();
+            degs[i] = Serial.parseFloat();
+
+            if (degs[i] < degree_limits[i][0]) {
+                degs[i] = degree_limits[i][0];
+                ret = i+1;
+            }
+            if (degs[i] > degree_limits[i][1]) {
+                degs[i] = degree_limits[i][1];
+                ret = i+1;
+            }
+
+            angles[i] = angle_to_pulse(degs[i], i);
+
+            EEPROM.put(address, angles[i]);
+            address += sizeof(angles[i]);
         }
-        serial_read_sync();
-        degs[i] = Serial.parseFloat();
+        echo_done(ret);
     }
 
-    int ret = 0;
-    for (int i=0; i<NSTEPPERS; i++) {
-        if (degs[i] < degree_limits[i][0]) {
-            degs[i] = degree_limits[i][0];
-            ret = i+1;
-        }
-        if (degs[i] > degree_limits[i][1]) {
-            degs[i] = degree_limits[i][1];
-            ret = i+1;
-        }
-        angles[i] = angle_to_pulse(degs[i], i);
-    }
-
-    return ret;
+    return 0;
 }
 
 void pulse_stepper(int idx, long delta, int dir)
@@ -161,15 +188,26 @@ void dump_real_angles ()
     Serial.print('\n');
 }
 
-void loop()
+void run_angles()
 {
     long angles[NSTEPPERS];
+    long count;
+    int  address = 0;
 
-    int out_of_range =  read_angles(&angles[0]);
-
-    change_to_angle(&angles[0]);
-
-    echo_done(out_of_range);
-    dump_real_angles();
+    EEPROM.get(address, count);
+    address += sizeof(count);
+    for (long i=0; i<count; i++) {
+        for (int j=0; j<NSTEPPERS; j++) {
+            EEPROM.get(address, angles[j]);
+            address += sizeof(angles[j]);
+        }
+        change_to_angle(&angles[0]);
+    }
 }
 
+void loop()
+{
+    if (read_angles()) {
+        run_angles();
+    }
+}
