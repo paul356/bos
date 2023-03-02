@@ -1,4 +1,4 @@
-(setq exec-path (cons "/usr/local/bin" exec-path))
+;(setq exec-path (cons "/usr/local/bin" exec-path))
 (setenv "PATH" (concat "/usr/local/bin" ":" (getenv "PATH")))
 
 (require 'package)
@@ -101,6 +101,26 @@
   :bind
   (("C-c g" . helm-ls-git-ls)))
 
+(defun export-to-jekyll-html ()
+  (interactive)
+  (let* ((fname (buffer-file-name))
+         (dname (file-name-directory fname))
+         (base-name (file-name-base fname)))
+    (if (not (string= (file-name-extension fname) "org"))
+      (message "not a org-mode file, skip ...")
+      (progn
+        (org-html-export-as-html)
+        (switch-to-buffer "*Org HTML Export*")
+        (goto-char (point-min))
+        (search-forward "<div id=\"content\" class=\"content\">")
+        (kill-region (point-min) (+ 1 (point)))
+        (goto-char (point-max))
+        (search-backward "</div>")
+        (kill-region (point) (point-max))
+        (write-file (format "%s../_posts/%s.html" dname base-name))
+        (kill-buffer (format "%s.html" base-name))
+        (delete-window)))))
+
 (show-paren-mode 1)
 (setq-default abbrev-mode 1)
 (setq-default indent-tabs-mode nil)
@@ -120,16 +140,31 @@
   :bind
   (("C-c y" . helm-yas-complete)))
 
-(use-package company
+(add-hook 'after-init-hook 'global-company-mode)
+
+(use-package org
   :init
-  (setq company-idle-delay nil  ; avoid auto completion popup, use TAB
-                                ; to show it
-        company-tooltip-align-annotations t)
-  :hook (after-init . global-company-mode)
-  :bind
-  (:map prog-mode-map
-        ("C-i" . company-indent-or-complete-common)
-        ("C-M-i" . completion-at-point)))
+  (setq org-export-with-toc nil)
+  (setq org-publish-project-alist
+        '(("org-paul356"
+           ;; Path to your org files.
+           :base-directory "~/code/paul356.github.io/org/"
+           :base-extension "org"
+           ;; Path to your Jekyll project.
+           :publishing-directory "~/code/paul356.github.io/_posts/"
+           :recursive t
+           :publishing-function org-html-publish-to-html
+           :headline-levels 4
+           :html-extension "html"
+           :body-only t ;; Only export section between <body> </body>
+           )
+          ("org-paul356-static"
+           :base-directory "~/code/paul356.github.io/org/"
+           :base-extension "css\\|js\\|png\\|jpg\\|gif\\|pdf\\|mp3\\|ogg\\|swf\\|php"
+           :publishing-directory "~/code/paul356.github.io/images/"
+           :recursive t
+           :publishing-function org-publish-attachment)
+          ("blog" :components ("org-paul356" "org-paul356-static")))))
 
 (defconst my-cc-style
   '("k&r"
@@ -141,43 +176,36 @@
 (setq c-default-style '((java-mode . "java")
                         (awk-mode . "awk")
                         (c++-mode . "my-cc-mode")
-                        (other . "k&r"))
-      company-async-timeout 5		; completion may be slow
-      rtags-completions-enabled t)
+                        (other . "k&r")))
 
-(use-package rtags
-  :defer
-  :config
-  (rtags-enable-standard-keybindings nil "C-c R"))
+(add-to-list 'auto-mode-alist '("\\.ino\\'" . c++-mode))
 
-(use-package company-rtags
-  :defer)
+(add-hook 'c-mode-common-hook 'cscope-setup)
 
-(use-package cmake-ide
-  :after cc-mode
-  :config
-  (cmake-ide-setup))
+;; (use-package cmake-ide
+;;   :after cc-mode
+;;   :config
+;;   (cmake-ide-setup))
 
-(defun my-c-c++-mode-hook-fn ()
-  (set (make-local-variable 'company-backends) '(company-rtags))
-  (company-mode)
-  (local-set-key (kbd "M-.") #'rtags-find-symbol-at-point)
-  (local-set-key (kbd "M-,") #'rtags-location-stack-back)
-  (local-set-key (kbd "C-M-.") #'rtags-find-symbol)
-  (local-set-key "\C-i" #'company-indent-or-complete-common)
-  (local-set-key (kbd "<tab>") #'company-indent-or-complete-common)
-  (local-set-key "\C-\M-i" #'company-indent-or-complete-common))
-
-(add-hook 'c-mode-hook #'my-c-c++-mode-hook-fn)
-(add-hook 'c++-mode-hook #'my-c-c++-mode-hook-fn)
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(cscope-option-do-not-update-database t)
+ '(cscope-program "/usr/local/bin/cscope")
+ '(org-mode-hook
+   (quote
+    (#[0 "\300\301\302\303\304$\207"
+         [add-hook change-major-mode-hook org-show-all append local]
+         5]
+     #[0 "\300\301\302\303\304$\207"
+         [add-hook change-major-mode-hook org-babel-show-result-all append local]
+         5]
+     org-babel-result-hide-spec org-babel-hide-all-hashes valign-mode)))
  '(package-selected-packages
    (quote
-    (git-messenger helm-git-grep helm-ls-git magit helm-c-yasnippet company-rtags ace-window helm helm-swoop yasnippet-snippets which-key cmake-ide zygospore ws-butler volatile-highlights use-package undo-tree rtags-xref projectile iedit flycheck dtrt-indent company comment-dwim-2 clojure-snippets clean-aindent-mode anzu))))
+    (valign scala-mode org s xcscope git-messenger helm-git-grep helm-ls-git magit helm-c-yasnippet ace-window helm helm-swoop yasnippet-snippets which-key cmake-ide zygospore ws-butler volatile-highlights use-package undo-tree rtags-xref projectile iedit flycheck dtrt-indent company comment-dwim-2 clojure-snippets clean-aindent-mode anzu))))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
