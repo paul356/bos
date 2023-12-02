@@ -43,7 +43,7 @@
         helm-swoop-split-with-multiple-windows t	
         helm-command-prefix-key "s-c")
   :config
-  (require 'helm-config)	      ; required to setup "s-c" keymap
+  ;(require 'helm-config)	      ; required to setup "s-c" keymap
   (helm-mode 1)
   (helm-autoresize-mode 1)
   ;; Only rebind M-x and C-x C-f on successful load of helm to remain
@@ -121,6 +121,43 @@
         (kill-buffer (format "%s.html" base-name))
         (delete-window)))))
 
+(defun convert-org-to-markdown (fname)
+    (let* ((dname (file-name-directory fname))
+         (base-name (file-name-base fname)))
+    (if (not (string= (file-name-extension fname) "org"))
+      (message "not a org-mode file, skip ...")
+      (progn
+        (org-md-export-as-markdown)
+        (switch-to-buffer "*Org MD Export*")
+        ;(goto-char (point-min))
+        ;(search-forward "<div id=\"content\" class=\"content\">")
+        ;(kill-region (point-min) (+ 1 (point)))
+        ;(goto-char (point-max))
+        ;(search-backward "</div>")
+        ;(kill-region (point) (point-max))
+        (write-file (format "%s../_posts/%s.md" dname base-name))
+        (kill-buffer (format "%s.md" base-name))
+        (delete-window)))))
+
+(defun export-to-jekyll-markdown ()
+  (interactive)
+  (convert-org-to-markdown (buffer-file-name)))
+
+(defun export-all-to-jekyll-markdown ()
+  (interactive)
+  (let* ((fname (buffer-file-name))
+         (dname (file-name-directory fname))
+         (flist (directory-files dname t)))
+    (progn
+      (mapc #'(lambda (x)
+                (when (and (string= (file-name-extension x) "org")
+                           (not (backup-file-name-p x)))
+                  (progn
+                    (message (format "processing %s" x))
+                    (switch-to-buffer (find-file-noselect x))
+                    (convert-org-to-markdown x))))
+            flist))))
+
 (show-paren-mode 1)
 (setq-default abbrev-mode 1)
 (setq-default indent-tabs-mode nil)
@@ -182,6 +219,8 @@
 
 (add-hook 'c-mode-common-hook 'cscope-setup)
 
+(define-key org-mode-map "\M-q" 'toggle-truncate-lines)
+
 ;; (use-package cmake-ide
 ;;   :after cc-mode
 ;;   :config
@@ -192,23 +231,31 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
+ '(company-idle-delay 0.5)
  '(cscope-option-do-not-update-database t)
- '(cscope-program "/usr/local/bin/cscope")
+ '(cscope-program "/usr/bin/cscope")
+ '(custom-enabled-themes '(tango-dark))
+ '(lpr-command "lpr")
+ '(lpr-switches nil)
+ '(org-export-backends '(html latex md))
+ '(org-html-postamble nil)
+ '(org-latex-compiler "xelatex")
  '(org-mode-hook
-   (quote
-    (#[0 "\300\301\302\303\304$\207"
+   '(#[0 "\300\301\302\303\304$\207"
          [add-hook change-major-mode-hook org-show-all append local]
          5]
      #[0 "\300\301\302\303\304$\207"
          [add-hook change-major-mode-hook org-babel-show-result-all append local]
          5]
-     org-babel-result-hide-spec org-babel-hide-all-hashes valign-mode)))
+     org-babel-result-hide-spec org-babel-hide-all-hashes valign-mode))
  '(package-selected-packages
-   (quote
-    (valign scala-mode org s xcscope git-messenger helm-git-grep helm-ls-git magit helm-c-yasnippet ace-window helm helm-swoop yasnippet-snippets which-key cmake-ide zygospore ws-butler volatile-highlights use-package undo-tree rtags-xref projectile iedit flycheck dtrt-indent company comment-dwim-2 clojure-snippets clean-aindent-mode anzu))))
+   '(protobuf-mode markdown-mode java-imports gradle-mode scala-mode org s xcscope git-messenger helm-git-grep helm-ls-git magit helm-c-yasnippet ace-window helm helm-swoop yasnippet-snippets which-key cmake-ide zygospore ws-butler volatile-highlights use-package undo-tree rtags-xref projectile iedit flycheck dtrt-indent company comment-dwim-2 clojure-snippets clean-aindent-mode anzu valign))
+ '(tags-case-fold-search nil)
+ '(tool-bar-mode nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+(put 'downcase-region 'disabled nil)
