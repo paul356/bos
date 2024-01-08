@@ -2,7 +2,7 @@ import time
 import random
 from umqtt.simple import MQTTClient
 from machine import Pin
-from uasyncio import sleep, create_task, Loop
+from uasyncio import sleep, create_task, run, CancelledError
 
 # Publish test messages e.g. with:
 # mosquitto_pub -t foo_topic -m hello
@@ -16,7 +16,7 @@ switch_state = None
 def sub_cb(topic, msg):
     global switch_state
     switch_state = msg.decode().lower()
-    
+
 p18 = Pin(18, Pin.IN, Pin.PULL_UP)
 
 async def check_mqtt():
@@ -32,19 +32,8 @@ async def check_mqtt():
         # Blocking wait for message
         last_state = key_state
         key_state = p18.value()
-        if clicked == -1 and key_state == 0 and last_state == 1:
+        if clicked < ticks and key_state == 0 and last_state == 1:
             clicked = ticks + 2
-        # debounce key press
-        if clicked == ticks and key_state == 0:
-            if switch_state == "on":
-                c.publish(switch_topic, b"off", retain=True)
-                switch_state = "off"
-            else:
-                c.publish(switch_topic, b"on", retain=True)
-                switch_state = "on"
-            clicked = -1
-        elif clicked == ticks:
-            clicked = -1
 
         try:
             if connect:
@@ -56,15 +45,33 @@ async def check_mqtt():
                 print("client ", client_id, " connects")
                 c.check_msg()
                 connect = False
+
+            # debounce key press
+            if clicked == ticks and key_state == 0:
+                clicked = -1
+                if switch_state == "on":
+                    c.publish(switch_topic, b"off", retain=True)
+                    switch_state = "off"
+                else:
+                    c.publish(switch_topic, b"on", retain=True)
+                    switch_state = "on"
+            elif clicked == ticks:
+                clicked = -1
         except Exception as e:
              print("wait message fail, ", e)
-             c.disconnect()
+             try:
+                 c.disconnect()
+             except Exception as e1:
+                 print("disconnect fail, ", e1)
              time.sleep(1)
              connect = True
+             clicked = -1
 
-        await sleep(0.005)
+        try:
+            await sleep(0.005)
+        except CancelledError:
+            print("task is cancelled")
         ticks = ticks + 1
 
 print("main started ...")
-create_task(check_mqtt())
-Loop.run_forever()
+run(check_mqtt())

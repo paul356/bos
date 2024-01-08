@@ -1,7 +1,7 @@
 from ili9XXX import st7735, COLOR_MODE_RGB, COLOR_MODE_BGR, MADCTL_MX, MADCTL_MY, PORTRAIT, LANDSCAPE
 import ntptime
 import time
-from uasyncio import sleep, create_task, Loop, CancelledError
+from uasyncio import sleep, run
 import lvgl as lv
 import lv_utils
 from machine import Pin
@@ -128,6 +128,4 @@ async def period_routine():
             await sleep(1)          
 
 # start routine task
-create_task(period_routine())
-Loop.run_forever()
-
+run(period_routine())

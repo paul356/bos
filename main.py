@@ -37,7 +37,10 @@ def main():
                 c.wait_msg()
         except Exception as e:
              print("wait message fail, ", e)
-             c.disconnect()
+             try:
+                 c.disconnect()
+             except Exception:
+                 print("disconnect fail")
              time.sleep(1)
              connect = True
     c.disconnect()
