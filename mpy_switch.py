@@ -19,11 +19,48 @@ def sub_cb(topic, msg):
 
 p18 = Pin(18, Pin.IN, Pin.PULL_UP)
 
+mqtt_conn = None
+
+async def connect_broker():
+    global mqtt_conn
+    try:
+        mqtt_conn.disconnect()
+    except Exception:
+        print("disconnect fail")
+    mqtt_conn = None
+    retry = True
+    while retry:
+        try:
+            client_id = f"umqtt_client{random.randint(0, 1000)}"
+            c = MQTTClient(client_id, server, port=port_num)
+            c.connect()
+            c.set_callback(sub_cb)
+            c.subscribe(switch_topic)
+            print("client ", client_id, " connects")
+            c.check_msg()
+            mqtt_conn = c
+            retry = False
+        except Exception as e:
+            print("connect to broker fail, ", e)
+            await sleep(1)
+
+async def publish_with_retry(new_value):
+    retry = True
+    while retry:
+        try:
+            print("publish ", new_value)
+            mqtt_conn.publish(switch_topic, new_value, retain=True)
+            retry = False
+        except Exception:
+            print("publish new state fail")
+            await connect_broker()
+
 async def check_mqtt():
     global pin_pressed
     global switch_state
-    connect = True
     ticks = 0
+
+    await connect_broker()
 
     clicked = -1
     last_state = 1
@@ -35,42 +72,19 @@ async def check_mqtt():
         if clicked < ticks and key_state == 0 and last_state == 1:
             clicked = ticks + 2
 
-        try:
-            if connect:
-                client_id = f"umqtt_client{random.randint(0, 1000)}"
-                c = MQTTClient(client_id, server, port=port_num)
-                c.connect()
-                c.set_callback(sub_cb)
-                c.subscribe(switch_topic)
-                print("client ", client_id, " connects")
-                c.check_msg()
-                connect = False
+        # debounce key press
+        if clicked == ticks and key_state == 0:
+            clicked = -1
+            if switch_state == "on":
+                await publish_with_retry(b"off")
+                switch_state = "off"
+            else:
+                await publish_with_retry(b"on")
+                switch_state = "on"
+        elif clicked == ticks:
+            clicked = -1
 
-            # debounce key press
-            if clicked == ticks and key_state == 0:
-                clicked = -1
-                if switch_state == "on":
-                    c.publish(switch_topic, b"off", retain=True)
-                    switch_state = "off"
-                else:
-                    c.publish(switch_topic, b"on", retain=True)
-                    switch_state = "on"
-            elif clicked == ticks:
-                clicked = -1
-        except Exception as e:
-             print("wait message fail, ", e)
-             try:
-                 c.disconnect()
-             except Exception as e1:
-                 print("disconnect fail, ", e1)
-             time.sleep(1)
-             connect = True
-             clicked = -1
-
-        try:
-            await sleep(0.005)
-        except CancelledError:
-            print("task is cancelled")
+        await sleep(0.005)
         ticks = ticks + 1
 
 print("main started ...")
