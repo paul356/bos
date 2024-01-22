@@ -2,6 +2,7 @@ import time
 import random
 from umqtt.simple import MQTTClient
 from machine import Pin
+from uasyncio import sleep, run, CancelledError
 
 # Publish test messages e.g. with:
 # mosquitto_pub -t foo_topic -m hello
@@ -19,7 +20,7 @@ def sub_cb(topic, msg):
     else:
         p5.off()
 
-def main():
+async def mqtt_task():
     print("main started ...")
     connect = True
     while True:
@@ -32,19 +33,16 @@ def main():
                 c.subscribe(switch_topic)
                 print("client ", client_id, " connects")
                 connect = False
-            if True:
-                # Blocking wait for message
-                c.wait_msg()
+            c.check_msg()
         except Exception as e:
              print("wait message fail, ", e)
              try:
                  c.disconnect()
              except Exception:
                  print("disconnect fail")
-             time.sleep(1)
+             await sleep(1)
              connect = True
-    c.disconnect()
+        await sleep(0.050)
 
-print("will enter main")
-if __name__ == "__main__":
-    main()
+print("main task start...")
+run(mqtt_task())

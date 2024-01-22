@@ -7,8 +7,9 @@ esp.osdebug(None)
 def do_connect():
     import network
 
-    SSID = '<ssid>'
-    PASSWORD = '<your_password>'
+    with open("wifi.txt", "r") as fin:
+        ssid = fin.readline().strip()
+        password = fin.readline().strip()
 
     sta_if = network.WLAN(network.STA_IF)
     ap_if = network.WLAN(network.AP_IF)
@@ -17,7 +18,7 @@ def do_connect():
     if not sta_if.isconnected():
         print('connecting to network...')
         sta_if.active(True)
-        sta_if.connect(SSID, PASSWORD)
+        sta_if.connect(ssid, password)
         while not sta_if.isconnected():
             pass
     print('Network configuration:', sta_if.ifconfig())
