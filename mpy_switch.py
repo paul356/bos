@@ -18,6 +18,8 @@ def sub_cb(topic, msg):
     switch_state = msg.decode().lower()
 
 p18 = Pin(18, Pin.IN, Pin.PULL_UP)
+p5 = Pin(5, Pin.OUT)
+p5.off()
 
 mqtt_conn = None
 
